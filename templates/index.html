@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Risk Prediction System</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6f9;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 40px 16px;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #1a1a2e;
+    }
+
+    header p {
+      margin-top: 6px;
+      color: #555;
+      font-size: 0.95rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #444;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .field label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .field input, .field select {
+      padding: 9px 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 7px;
+      font-size: 0.9rem;
+      color: #1a1a2e;
+      background: #fafafa;
+      transition: border-color 0.15s;
+    }
+
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: #4361ee;
+      background: #fff;
+    }
+
+    .submit-btn {
+      margin-top: 22px;
+      width: 100%;
+      padding: 12px;
+      background: #4361ee;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .submit-btn:hover { background: #3451d1; }
+    .submit-btn:disabled { background: #a0aec0; cursor: not-allowed; }
+
+    /* Result panel */
+    #result {
+      display: none;
+    }
+
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .score-value {
+      font-size: 2.8rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      line-height: 1;
+    }
+
+    .score-label { font-size: 0.82rem; color: #777; margin-top: 3px; }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 18px;
+      border-radius: 20px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .badge.Low    { background: #d1fae5; color: #065f46; }
+    .badge.Medium { background: #fef3c7; color: #92400e; }
+    .badge.High   { background: #fee2e2; color: #991b1b; }
+
+    .risk-bar-wrap {
+      margin-bottom: 20px;
+    }
+
+    .risk-bar-track {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.5s ease;
+    }
+
+    .risk-bar-fill.Low    { background: #10b981; }
+    .risk-bar-fill.Medium { background: #f59e0b; }
+    .risk-bar-fill.High   { background: #ef4444; }
+
+    .factors-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #444;
+      margin-bottom: 10px;
+    }
+
+    .factors-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .factors-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.92rem;
+      color: #333;
+    }
+
+    .factors-list li::before {
+      content: "→";
+      color: #4361ee;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .error-msg {
+      color: #dc2626;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      display: none;
+    }
+
+    @media (max-width: 520px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .score-value { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Student Risk Prediction System</h1>
+      <p>Enter student details to assess dropout risk and identify key contributing factors.</p>
+    </header>
+
+    <div class="card">
+      <h2>Student Information</h2>
+      <form id="predict-form">
+        <div class="form-grid">
+
+          <div class="field">
+            <label>Approved Units — 1st Sem</label>
+            <input type="number" name="units_1st_approved" min="0" max="26" step="1" placeholder="e.g. 5" required />
+          </div>
+
+          <div class="field">
+            <label>Approved Units — 2nd Sem</label>
+            <input type="number" name="units_2nd_approved" min="0" max="26" step="1" placeholder="e.g. 5" required />
+          </div>
+
+          <div class="field">
+            <label>Grade — 1st Sem (0–20)</label>
+            <input type="number" name="grade_1st" min="0" max="20" step="0.01" placeholder="e.g. 12.5" required />
+          </div>
+
+          <div class="field">
+            <label>Grade — 2nd Sem (0–20)</label>
+            <input type="number" name="grade_2nd" min="0" max="20" step="0.01" placeholder="e.g. 12.5" required />
+          </div>
+
+          <div class="field">
+            <label>Assessments Attempted — 1st Sem</label>
+            <input type="number" name="evals_1st" min="0" max="45" step="1" placeholder="e.g. 6" required />
+          </div>
+
+          <div class="field">
+            <label>Assessments Attempted — 2nd Sem</label>
+            <input type="number" name="evals_2nd" min="0" max="45" step="1" placeholder="e.g. 6" required />
+          </div>
+
+          <div class="field">
+            <label>Tuition Fees Up to Date</label>
+            <select name="tuition" required>
+              <option value="" disabled selected>Select…</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Scholarship Holder</label>
+            <select name="scholarship" required>
+              <option value="" disabled selected>Select…</option>
+              <option value="1">Yes</option>
+              <option value="0">No</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Age at Enrollment</label>
+            <input type="number" name="age" min="15" max="70" step="1" placeholder="e.g. 20" required />
+          </div>
+
+          <div class="field">
+            <label>Admission Grade (0–200)</label>
+            <input type="number" name="admission_grade" min="0" max="200" step="0.01" placeholder="e.g. 127.3" required />
+          </div>
+
+        </div>
+
+        <button type="submit" class="submit-btn" id="submit-btn">Predict Risk</button>
+        <p class="error-msg" id="error-msg">Something went wrong. Please try again.</p>
+        <p class="error-msg" id="validation-msg"></p>
+      </form>
+    </div>
+
+    <!-- Result -->
+    <div class="card" id="result">
+      <h2>Prediction Result</h2>
+
+      <div class="score-row">
+        <div>
+          <div class="score-value" id="score-display">—</div>
+          <div class="score-label">Risk Score (0–1)</div>
+        </div>
+        <span class="badge" id="level-badge">—</span>
+      </div>
+
+      <div class="risk-bar-wrap">
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="risk-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="factors-title">Top Risk Factors</div>
+      <ul class="factors-list" id="factors-list"></ul>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("predict-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById("submit-btn");
+      const errMsg = document.getElementById("error-msg");
+      errMsg.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Predicting…";
+
+      const fd = new FormData(this);
+      const payload = {};
+      fd.forEach((v, k) => { payload[k] = v; });
+
+      // Validation: approved units cannot exceed assessments attempted
+      const valMsg = document.getElementById("validation-msg");
+      valMsg.style.display = "none";
+      const approved1 = parseFloat(payload.units_1st_approved);
+      const approved2 = parseFloat(payload.units_2nd_approved);
+      const evals1   = parseFloat(payload.evals_1st);
+      const evals2   = parseFloat(payload.evals_2nd);
+
+      if (approved1 > evals1 || approved2 > evals2) {
+        const which = [];
+        if (approved1 > evals1) which.push("1st semester");
+        if (approved2 > evals2) which.push("2nd semester");
+        valMsg.textContent = "Approved units cannot exceed attempted assessments (" + which.join(" & ") + ").";
+        valMsg.style.display = "block";
+        btn.disabled = false;
+        btn.textContent = "Predict Risk";
+        return;
+      }
+
+      try {
+        const res = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Server error");
+        const data = await res.json();
+
+        // Score
+        document.getElementById("score-display").textContent = data.risk_score.toFixed(3);
+
+        // Badge
+        const badge = document.getElementById("level-badge");
+        badge.textContent = data.risk_level + " Risk";
+        badge.className = "badge " + data.risk_level;
+
+        // Bar
+        const bar = document.getElementById("risk-bar");
+        bar.style.width = (data.risk_score * 100) + "%";
+        bar.className = "risk-bar-fill " + data.risk_level;
+
+        // Factors
+        const list = document.getElementById("factors-list");
+        list.innerHTML = "";
+        data.factors.forEach(f => {
+          const li = document.createElement("li");
+          li.textContent = f;
+          list.appendChild(li);
+        });
+
+        document.getElementById("result").style.display = "block";
+        document.getElementById("result").scrollIntoView({ behavior: "smooth" });
+
+      } catch (err) {
+        errMsg.style.display = "block";
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Predict Risk";
+      }
+    });
+  </script>
+</body>
+</html>
